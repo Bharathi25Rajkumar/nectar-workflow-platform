@@ -9,7 +9,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users", uniqueConstraints = @UniqueConstraint(columnNames = {"tenant_id", "username"}))
+@Table(name = "users", uniqueConstraints = @UniqueConstraint(columnNames = {"tenant_id", "username"}),
+        indexes = @Index(name = "idx_users_tenant", columnList = "tenant_id"))
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
