@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "projects", uniqueConstraints = @UniqueConstraint(columnNames = {"tenant_id", "key"}))
+@Table(name = "projects", uniqueConstraints = @UniqueConstraint(columnNames = {"tenant_id", "project_key"}))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
@@ -28,8 +28,8 @@ public class Project {
     @Column(nullable = false, length = 200)
     private String name;
 
-    @Column(nullable = false, length = 20)
-    private String key;
+    @Column(name = "project_key", nullable = false, length = 20)
+    private String projectKey;
 
     @Column(length = 1000)
     private String description;

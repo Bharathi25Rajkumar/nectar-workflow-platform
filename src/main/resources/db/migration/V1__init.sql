@@ -2,8 +2,8 @@ CREATE TABLE tenants (
     id UUID PRIMARY KEY,
     slug VARCHAR(100) NOT NULL UNIQUE,
     name VARCHAR(200) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE users (
@@ -13,8 +13,8 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL,
     email VARCHAR(200),
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     UNIQUE (tenant_id, username)
 );
 CREATE INDEX idx_users_tenant ON users(tenant_id);
@@ -22,12 +22,12 @@ CREATE INDEX idx_users_tenant ON users(tenant_id);
 CREATE TABLE projects (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL REFERENCES tenants(id),
-    key VARCHAR(20) NOT NULL,
+    project_key VARCHAR(20) NOT NULL,
     name VARCHAR(200) NOT NULL,
     description VARCHAR(1000),
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    UNIQUE (tenant_id, key)
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    UNIQUE (tenant_id, project_key)
 );
 
 CREATE TABLE workflow_definitions (
@@ -36,8 +36,8 @@ CREATE TABLE workflow_definitions (
     name VARCHAR(100) NOT NULL,
     description VARCHAR(1000),
     version BIGINT NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     UNIQUE (tenant_id, name)
 );
 
@@ -47,6 +47,8 @@ CREATE TABLE workflow_states (
     name VARCHAR(100) NOT NULL,
     initial BOOLEAN NOT NULL,
     terminal BOOLEAN NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     UNIQUE (workflow_id, name)
 );
 
@@ -71,8 +73,8 @@ CREATE TABLE tasks (
     description VARCHAR(2000),
     assignee_id UUID REFERENCES users(id),
     version BIGINT NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
 );
 CREATE INDEX idx_tasks_tenant_project ON tasks(tenant_id, project_id);
 CREATE INDEX idx_tasks_state ON tasks(current_state_id);

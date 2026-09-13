@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "states", uniqueConstraints = @UniqueConstraint(columnNames = {"workflow_id", "name"}))
+@Table(name = "workflow_states", uniqueConstraints = @UniqueConstraint(columnNames = {"workflow_id", "name"}))
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
