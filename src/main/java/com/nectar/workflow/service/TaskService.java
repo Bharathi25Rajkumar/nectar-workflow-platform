@@ -22,6 +22,7 @@ public class TaskService {
     private final UserRepository userRepository;
     private final WorkflowEngine workflowEngine;
     private final AuditService auditService;
+    private final OutboxService outboxService;
 
     public TaskService(TaskRepository taskRepository,
                        ProjectRepository projectRepository,
@@ -29,7 +30,8 @@ public class TaskService {
                        WorkflowStateRepository workflowStateRepository,
                        UserRepository userRepository,
                        WorkflowEngine workflowEngine,
-                       AuditService auditService) {
+                       AuditService auditService,
+                       OutboxService outboxService) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.workflowDefinitionRepository = workflowDefinitionRepository;
@@ -37,6 +39,7 @@ public class TaskService {
         this.userRepository = userRepository;
         this.workflowEngine = workflowEngine;
         this.auditService = auditService;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -66,6 +69,9 @@ public class TaskService {
                 .build();
 
         Task savedTask = taskRepository.save(task);
+
+        String payload = "{\"taskId\":\"" + savedTask.getId() + "\",\"projectId\":\"" + projectId + "\",\"tenantId\":\"" + tenantId + "\",\"title\":\"" + title + "\"}";
+        outboxService.save(tenantId, "TASK", savedTask.getId(), "TaskCreated", payload);
         auditService.log(tenantId, "TASK", savedTask.getId(), "CREATE", actor, "Created task: " + title);
         return savedTask;
     }
@@ -101,6 +107,11 @@ public class TaskService {
 
         workflowEngine.advance(task, actor, transitionName);
         Task savedTask = taskRepository.save(task);
+
+        String payload = "{\"taskId\":\"" + savedTask.getId() + "\",\"fromState\":\"" + from + "\",\"toState\":\"" + savedTask.getCurrentState().getName() + "\",\"transition\":\"" + transitionName + "\",\"tenantId\":\"" + tenantId + "\"}";
+
+        outboxService.save(tenantId, "TASK", savedTask.getId(), "TaskTransitioned", payload);
+
         auditService.log(tenantId, "TASK", savedTask.getId(),
                 "TRANSITION:" + transitionName, actor,
                 from + " -> " + savedTask.getCurrentState().getName());
