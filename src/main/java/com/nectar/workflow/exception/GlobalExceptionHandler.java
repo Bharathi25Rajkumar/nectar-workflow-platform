@@ -1,8 +1,11 @@
 package com.nectar.workflow.exception;
 
 import com.nectar.workflow.dtos.ErrorResponseDto;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -34,5 +37,20 @@ public class GlobalExceptionHandler {
                 .findFirst().orElse("Validation failed");
         ErrorResponseDto body = new ErrorResponseDto(Instant.now(), HttpStatus.BAD_REQUEST.value(), HttpStatus.BAD_REQUEST.getReasonPhrase(), msg);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponseDto> handleConflict(ObjectOptimisticLockingFailureException ex){
+        ErrorResponseDto errorResponseDto = new ErrorResponseDto(Instant.now(), HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(), "Conflict: task was modified by another user, retry");
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponseDto);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponseDto> handleForbidden(AccessDeniedException ex) {
+        ErrorResponseDto body = new ErrorResponseDto(Instant.now(),
+                HttpStatus.FORBIDDEN.value(), HttpStatus.FORBIDDEN.getReasonPhrase(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 }
