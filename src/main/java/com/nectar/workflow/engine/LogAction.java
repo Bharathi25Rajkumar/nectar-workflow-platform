@@ -23,15 +23,17 @@ public class LogAction implements WorkflowAction {
     @Override
     public void execute(Task task, User actor, WorkflowTransition transition) {
 
-        TaskHistory history = TaskHistory.builder()
-                .tenantId(task.getTenant().getId())
-                .task(task)
-                .fromState(transition.getFromState())
-                .toState(transition.getToState())
-                .transitionName(transition.getName())
-                .actor(actor)
-                .build();
-        taskHistoryRepository.save(history);
+        if(taskHistoryRepository != null){
+            TaskHistory history = TaskHistory.builder()
+                    .tenantId(task.getTenant().getId())
+                    .task(task)
+                    .fromState(transition.getFromState())
+                    .toState(transition.getToState())
+                    .transitionName(transition.getName())
+                    .actor(actor)
+                    .build();
+            taskHistoryRepository.save(history);
+        }
 
         log.info("Task {} transition '{}' by user {}: {} -> {}",
                 task.getId(),
