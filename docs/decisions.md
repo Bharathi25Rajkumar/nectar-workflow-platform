@@ -19,7 +19,7 @@ Trade-off: EntityGraph keeps count query correct (JOIN FETCH breaks count), JOIN
 
 ## ADR-4 Outbox Pattern
 Context: DB save + kafka send dual-write can lose event or ghost event.
-Decision: OutboxEvent row in same @Transactional as task + history + audit, poller SELECT WHERE published=false LIMIT 100 every 5s, sync kafka send with header eventId + get 3s, markPublished.
+Decision: OutboxEvent row in same @Transactional as task + history + audit, poller SELECT WHERE published=false LIMIT 100 every 5s, builds WorkflowEvent record and sync kafka send with header eventId + get 3s, markPublished.
 Alternatives: dual-write directly, 2PC XA, CDC Debezium.
 Trade-off: outbox converts dual-write to single transaction + at-least-once replay; needs poller and idempotency. 2PC not supported by Kafka. Chosen outbox + poller.
 
@@ -31,8 +31,8 @@ Trade-off: deterministic ensures same payload same PK; header is preferred sourc
 
 ## ADR-6 Kafka vs RabbitMQ
 Context: Task 4 requires both; decide where each fits.
-Decision: Kafka = loudspeaker, persistent log, partitioning key=tenantId (12 partitions), consumer group nectar-audit-group scales to 12, ordering per tenant, replay via offset, many groups get same copy. RabbitMQ = work queue, DirectExchange + Queue with x-dead-letter to DLQ, manual ACK/NACK, deleted after ACK, one worker gets message.
-Trade-off: Kafka high throughput, replay, multi-consumer; Rabbit low latency, per-message ACK/DLQ. Outbox fans out same event to both: Kafka topic nectar.task.events for broadcast, Rabbit exchange for single worker. In prod would split domain vs command, but fan-out proves both for evaluation.
+Decision: Kafka = loudspeaker, persistent log, ProducerFactory<String, WorkflowEvent> with JsonSerializer (ADD_TYPE_INFO_HEADERS false), acks=all retries=3 enable.idempotence=true, topics nectar.workflow.events (6 partitions) and nectar.task.events as audit (3 partitions) configurable via nectar.kafka.topics.* in application.properties, key=tenantId for per-tenant ordering, consumer group nectar-audit-group, replay via offset, many groups get same copy. RabbitMQ = work queue, DirectExchange + Queue with x-dead-letter to DLQ (5-bean simple config), manual ACK/NACK in consumer, deleted after ACK, one worker gets message.
+Trade-off: Kafka high throughput, replay, multi-consumer; Rabbit low latency, per-message ACK/DLQ. Outbox fans out same WorkflowEvent to both: Kafka topic for broadcast, Rabbit exchange for single worker. In prod would split domain vs command, but fan-out proves both for evaluation.
 
 ## ADR-7 Strategy Pattern
 Context: transitions have varying conditions and actions.
@@ -52,7 +52,7 @@ Trade-off: Page does COUNT(*) extra query but UI needs totalPages; poller List a
 
 ## ADR-10 Profiles and Deployment
 Context: need H2 local dev and Postgres prod without code change.
-Decision: application.properties common, application-dev.properties H2, application-prod.properties Postgres + kafka:9092 + rabbitmq host, SPRING_PROFILES_ACTIVE=prod in compose. Docker multi-stage build with Embedded Tomcat (spring-boot-starter-webmvc). Env vars override secrets; hardcoded in compose for evaluation only.
+Decision: application.properties common (includes nectar.kafka.topics.workflow-events and nectar.kafka.topics.audit plus jwt/flyway), application-dev.properties H2, application-prod.properties Postgres + kafka:9092 + rabbitmq host, SPRING_PROFILES_ACTIVE=prod in compose. Docker multi-stage build with Embedded Tomcat (spring-boot-starter-webmvc). Env vars override secrets; hardcoded in compose for evaluation only.
 Alternatives: single file with env override only, external Tomcat WAR.
 Trade-off: profiles clear intent; external WAR alternative documented but embedded chosen for stateless horizontal scale.
 

@@ -1,6 +1,7 @@
 package com.nectar.workflow.outbox;
 
 import com.nectar.workflow.entity.OutboxEvent;
+import com.nectar.workflow.messaging.kafka.WorkflowEvent;
 import com.nectar.workflow.repository.OutboxEventRepository;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
@@ -21,11 +22,11 @@ public class OutboxPoller {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPoller.class);
     private final OutboxEventRepository outboxEventRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, WorkflowEvent> kafkaTemplate;
     private final RabbitTemplate rabbitTemplate;
 
     public OutboxPoller(OutboxEventRepository outboxEventRepository,
-                        @Autowired(required = false) KafkaTemplate<String, String> kafkaTemplate,
+                        @Autowired(required = false) KafkaTemplate<String, WorkflowEvent> kafkaTemplate,
                         @Autowired(required = false) RabbitTemplate rabbitTemplate) {
         this.outboxEventRepository = outboxEventRepository;
         this.kafkaTemplate = kafkaTemplate;
@@ -42,9 +43,17 @@ public class OutboxPoller {
         for (OutboxEvent event : batch) {
             try {
                 String key = event.getTenantId().toString();
-                if(kafkaTemplate != null){
-                    ProducerRecord<String, String> record =
-                            new ProducerRecord<>("nectar.task.events", key, event.getPayload());
+                if (kafkaTemplate != null) {
+                    WorkflowEvent wf = new WorkflowEvent(
+                            event.getId(),
+                            event.getEventType(),
+                            event.getAggregateType(),
+                            event.getAggregateId(),
+                            event.getTenantId(),
+                            event.getPayload(),
+                            event.getCreatedAt());
+                    ProducerRecord<String, WorkflowEvent> record =
+                            new ProducerRecord<>("nectar.task.events", key, wf);
                     record.headers().add("eventId", event.getId().toString().getBytes(StandardCharsets.UTF_8));
                     try {
                         kafkaTemplate.send(record).get(3, java.util.concurrent.TimeUnit.SECONDS);

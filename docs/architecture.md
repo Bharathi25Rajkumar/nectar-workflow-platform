@@ -6,7 +6,7 @@ Multi-tenant, event-driven workflow platform for 10k tenants, 1M tasks, millions
 ## System Context
 ```
 Client -> Load Balancer -> App x N (stateless) -> Postgres 16
-                            |-> Kafka (nectar.task.events, 12 partitions, key=tenantId)
+                            |-> Kafka (nectar.workflow.events 6 partitions, nectar.task.events 3 partitions, key=tenantId, WorkflowEvent JSON)
                             |-> RabbitMQ (nectar.exchange -> nectar.task.queue -> DLQ nectar.task.dlq)
                             |-> Outbox Poller (fixedDelay 5s)
 ```
@@ -45,21 +45,21 @@ Strategy: TransitionCondition (AlwaysTrueCondition, AssigneeOnlyCondition) and W
 All @ManyToOne LAZY. Fix: @EntityGraph for Page queries (keeps count query correct), @Query JOIN FETCH for List queries. Pagination via Page<T> findByTenantId with Pageable size 20; never findAll. Poller uses List not Page to avoid COUNT.
 
 ## Event-Driven
-Outbox: TaskService create/transition saves Task + TaskHistory + AuditRecord + OutboxEvent in same @Transactional. If Kafka down, row stays published=false. Poller polls SELECT WHERE published=false ORDER BY createdAt LIMIT 100, sends to Kafka with header eventId=outbox.id (sync get 3s so failure keeps published=false) and to RabbitMQ with same header, then markPublished().
+Outbox: TaskService create/transition saves Task + TaskHistory + AuditRecord + OutboxEvent in same @Transactional. If Kafka down, row stays published=false. Poller polls SELECT WHERE published=false ORDER BY createdAt LIMIT 100, builds WorkflowEvent(id, eventType, aggregateType, aggregateId, tenantId, payload, createdAt), sends to Kafka with header eventId=outbox.id (sync get 3s so failure keeps published=false) and to RabbitMQ with same header, then markPublished().
 
-Kafka: topic nectar.task.events 12 partitions, key=tenantId for per-tenant ordering, consumer group nectar-audit-group scales to 12 instances, persistent log with replay via offset.
+Kafka: topics nectar.workflow.events (6 partitions) and nectar.task.events (3 partitions, mapped as nectar.kafka.topics.audit) configurable via application.properties, key=tenantId for per-tenant ordering, producer ProducerFactory<String, WorkflowEvent> with JsonSerializer (ADD_TYPE_INFO_HEADERS false), acks=all retries=3 enable.idempotence=true, consumer group nectar-audit-group via properties with auto-offset-reset earliest, persistent log with replay via offset.
 
-RabbitMQ: DirectExchange nectar.exchange, Queue nectar.task.queue with x-dead-letter-exchange to DLQ, manual ACK (basicAck tag,false after idempotency+logic, basicNack tag,false,false to DLQ on failure). Work queue semantics, deleted after ACK.
+RabbitMQ: DirectExchange nectar.exchange, Queue nectar.task.queue with x-dead-letter-exchange to DLQ, simple 5-bean config (exchange, queue, dlq, 2 bindings) via Spring AMQP auto-config, manual ACK handled in TaskRabbitConsumer (basicAck tag,false after idempotency+logic, basicNack tag,false,false to DLQ on failure). Work queue semantics, deleted after ACK.
 
 Idempotency: processed_events PK=eventId. Consumer inserts before processing in same transaction; duplicate PK -> DataIntegrityViolationException -> skip and ACK. Deterministic fallback UUID.nameUUIDFromBytes(payload) when header absent.
 
 ## Deployment
-Embedded Tomcat via spring-boot-starter-webmvc (spring-boot-maven-plugin jar). Dockerfile multi-stage: build stage mvnw dependency:go-offline then package -DskipTests, runtime stage JRE + app.jar, EXPOSE 8080. Profiles: application.properties common, application-dev.properties H2, application-prod.properties Postgres+kafka:9092+rabbitmq. SPRING_PROFILES_ACTIVE=prod in compose. Secrets in compose for evaluation only.
+Embedded Tomcat via spring-boot-starter-webmvc (spring-boot-maven-plugin jar). Dockerfile multi-stage: build stage mvnw dependency:go-offline then package -DskipTests, runtime stage JRE + app.jar, EXPOSE 8080. Profiles: application.properties common (includes nectar.kafka.topics.workflow-events and nectar.kafka.topics.audit), application-dev.properties H2, application-prod.properties Postgres+kafka:9092+rabbitmq. SPRING_PROFILES_ACTIVE=prod in compose. Secrets in compose for evaluation only.
 
 Compose: postgres:16 healthcheck pg_isready, zookeeper, kafka healthcheck kafka:9092, rabbitmq:3-management, app depends_on service_healthy.
 
 ## Scalability Notes (implemented)
 - Indexes: idx_tasks_tenant_project, idx_tasks_current_state, idx_users_tenant, idx_task_history_tenant_task, idx_outbox_published, idx_audit_tenant
 - Hikari pooling, stateless, horizontal scale
-- Kafka 12 partitions, Rabbit competing consumers
+- Kafka 6+3 partitions, Rabbit competing consumers (configured via properties)
 - Future: Redis for workflow definition cache, read replica, partitioning by tenant_id

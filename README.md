@@ -37,11 +37,12 @@ src/main/java/com/nectar/workflow
   service/       AuthService, TaskService, ProjectService, WorkflowService, AuditService, OutboxService
   outbox/        OutboxPoller
   messaging/     TaskEventConsumer (Kafka), TaskRabbitConsumer (RabbitMQ)
+  messaging/kafka WorkflowEvent (record for Kafka JsonSerializer)
   controller/    AuthController, TaskController, ProjectController, WorkflowController
   dtos/          *RequestDto / *ResponseDto as records
   exception/     GlobalExceptionHandler
 src/main/resources
-  application.properties        (common: jwt, flyway)
+  application.properties        (common: jwt, flyway, nectar.kafka.topics.workflow-events, nectar.kafka.topics.audit)
   application-dev.properties    (H2)
   application-prod.properties   (Postgres + kafka:9092 + rabbitmq)
   db/migration/ V1__init.sql V2__seed.sql V3__history_and_audit.sql V4__outbox.sql
@@ -57,7 +58,7 @@ src/test/resources/application.properties (H2 + brokers disabled for contextLoad
 
 ## Authentication
 All /api/** except /api/auth/** require:
-  Authorization: Bearer <jwt>
+  Authorization: Bearer ***
   X-Tenant-Id: <tenant uuid>
 
 Login:
@@ -72,11 +73,15 @@ curl -X POST http://localhost:8080/api/auth/login \
 Tenant isolation demo:
 ```bash
 # acme admin lists own projects -> 200
-curl http://localhost:8080/api/projects -H "Authorization: Bearer <acme-token>" -H "X-Tenant-Id: 111..."
+curl http://localhost:8080/api/projects -H "Authorization: Bearer ***" -H "X-Tenant-Id: 111..."
 # globex token tries to GET acme project id -> 404 not 403 (no leak)
-curl http://localhost:8080/api/projects/<acme-id> -H "Authorization: Bearer <globex-token>" -H "X-Tenant-Id: 222..."
+curl http://localhost:8080/api/projects/<acme-id> -H "Authorization: Bearer ***" -H "X-Tenant-Id: 222..."
 # wrong X-Tenant-Id vs token -> 403
 ```
+
+## Kafka / RabbitMQ
+- Kafka: ProducerFactory<String, WorkflowEvent> with JsonSerializer (ADD_TYPE_INFO_HEADERS false), acks=all retries=3 enable.idempotence=true, topics nectar.workflow.events (6 partitions) and nectar.task.events as audit (3 partitions) configurable via nectar.kafka.topics.* in application.properties, key=tenantId for per-tenant ordering
+- RabbitMQ: DirectExchange nectar.exchange, Queue nectar.task.queue with x-dead-letter to nectar.task.dlq, 5-bean simple config
 
 ## Docs
 - [Architecture](docs/architecture.md)
