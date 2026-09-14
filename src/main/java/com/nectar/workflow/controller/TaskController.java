@@ -44,7 +44,7 @@ public class TaskController {
     }
 
     @GetMapping
-    public Page<TaskResponseDto> list(@PageableDefault(size = 20) Pageable pageable) {
+    public Page<TaskResponseDto> listTasks(@PageableDefault(size = 20) Pageable pageable) {
         return taskService.listTasks(pageable).map(this::toResponseDto);
     }
 

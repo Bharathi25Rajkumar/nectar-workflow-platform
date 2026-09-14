@@ -13,7 +13,7 @@ import java.util.UUID;
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     Optional<Project> findByIdAndTenantId(UUID uuid, UUID tenantId);
-    Optional<Project> findByKeyAndTenantId(String projectKey, UUID tenantId);
+    Optional<Project> findByProjectKeyAndTenantId(String projectKey, UUID tenantId);
     Page<Project> findByTenantId(UUID tenantId, Pageable pageable);
 
 }
