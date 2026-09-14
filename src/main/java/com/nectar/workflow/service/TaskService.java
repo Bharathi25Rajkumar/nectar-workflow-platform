@@ -21,19 +21,22 @@ public class TaskService {
     private final WorkflowStateRepository workflowStateRepository;
     private final UserRepository userRepository;
     private final WorkflowEngine workflowEngine;
+    private final AuditService auditService;
 
     public TaskService(TaskRepository taskRepository,
                        ProjectRepository projectRepository,
                        WorkflowDefinitionRepository workflowDefinitionRepository,
                        WorkflowStateRepository workflowStateRepository,
                        UserRepository userRepository,
-                       WorkflowEngine workflowEngine) {
+                       WorkflowEngine workflowEngine,
+                       AuditService auditService) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.workflowDefinitionRepository = workflowDefinitionRepository;
         this.workflowStateRepository = workflowStateRepository;
         this.userRepository = userRepository;
         this.workflowEngine = workflowEngine;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -62,8 +65,9 @@ public class TaskService {
                 .description(description)
                 .build();
 
-        return taskRepository.save(task);
-
+        Task savedTask = taskRepository.save(task);
+        auditService.log(tenantId, "TASK", savedTask.getId(), "CREATE", actor, "Created task: " + title);
+        return savedTask;
     }
 
     @Transactional(readOnly = true)
@@ -93,8 +97,14 @@ public class TaskService {
 
         User actor = userRepository.findByUsernameAndTenantId(actorUsername, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        String from = task.getCurrentState().getName();
 
         workflowEngine.advance(task, actor, transitionName);
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+        auditService.log(tenantId, "TASK", savedTask.getId(),
+                "TRANSITION:" + transitionName, actor,
+                from + " -> " + savedTask.getCurrentState().getName());
+
+        return savedTask;
     }
 }
