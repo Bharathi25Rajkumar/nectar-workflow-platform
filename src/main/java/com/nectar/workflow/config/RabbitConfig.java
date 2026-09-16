@@ -1,42 +1,54 @@
 package com.nectar.workflow.config;
 
 import org.springframework.amqp.core.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitConfig {
 
-    public static final String EXCHANGE = "nectar.exchange";
-    public static final String TASK_QUEUE = "nectar.task.queue";
-    public static final String TASK_DLQ = "nectar.task.dlq";
-    public static final String ROUTING_KEY = "task.event";
+    @Value("${nectar.rabbitmq.exchange:nectar.exchange}")
+    private String exchangeName;
+
+    @Value("${nectar.rabbitmq.queues.task:nectar.task.queue}")
+    private String taskQueueName;
+
+    @Value("${nectar.rabbitmq.queues.task-dlq:nectar.task.dlq}")
+    private String taskDlqName;
+
+    @Value("${nectar.rabbitmq.routing-keys.task:task.event}")
+    private String taskRoutingKey;
+
+    @Value("${nectar.rabbitmq.routing-keys.task-dlq:task.dlq}")
+    private String taskDlqRoutingKey;
 
     @Bean
     public DirectExchange exchange() {
-        return new DirectExchange(EXCHANGE, true, false);
+        return new DirectExchange(exchangeName, true, false);
     }
 
     @Bean
     public Queue taskQueue() {
-        return QueueBuilder.durable(TASK_QUEUE)
-                .withArgument("x-dead-letter-exchange", EXCHANGE)
-                .withArgument("x-dead-letter-routing-key", "task.dlq")
+        return QueueBuilder.durable(taskQueueName)
+                .withArgument("x-dead-letter-exchange", exchangeName)
+                .withArgument("x-dead-letter-routing-key", taskDlqRoutingKey)
                 .build();
     }
 
     @Bean
     public Queue taskDlq() {
-        return QueueBuilder.durable(TASK_DLQ).build();
+        return QueueBuilder.durable(taskDlqName).build();
     }
 
     @Bean
     public Binding taskBinding() {
-        return BindingBuilder.bind(taskQueue()).to(exchange()).with(ROUTING_KEY);
+        return BindingBuilder.bind(taskQueue()).to(exchange()).with(taskRoutingKey);
     }
 
     @Bean
     public Binding dlqBinding() {
-        return BindingBuilder.bind(taskDlq()).to(exchange()).with("task.dlq");
+        return BindingBuilder.bind(taskDlq()).to(exchange()).with(taskDlqRoutingKey);
     }
+
 }

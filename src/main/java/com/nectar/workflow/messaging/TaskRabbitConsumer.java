@@ -18,13 +18,14 @@ import java.util.UUID;
 public class TaskRabbitConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(TaskRabbitConsumer.class);
+
     private final ProcessedEventRepository processedEventRepository;
 
     public TaskRabbitConsumer(ProcessedEventRepository processedEventRepository) {
         this.processedEventRepository = processedEventRepository;
     }
 
-    @RabbitListener(queues = "nectar.task.queue", ackMode = "MANUAL")
+    @RabbitListener(queues = "${nectar.rabbitmq.queues.task:nectar.task.queue}", ackMode = "MANUAL")
     @Transactional
     public void handle(String payload,
                        @Header(value = "eventId", required = false) String eventIdHeader,

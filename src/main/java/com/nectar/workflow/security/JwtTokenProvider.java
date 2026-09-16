@@ -15,15 +15,14 @@ import java.util.UUID;
 @Component
 public class JwtTokenProvider {
 
+
     private final SecretKey key;
     private final long expirationMs;
 
-    public JwtTokenProvider(@Value("${app.jwt.secret}") String secret,
-                            @Value("${app.jwt.expiration-ms}") long expirationMs){
+    public JwtTokenProvider(@Value("${app.jwt.secret}") String secret, @Value("${app.jwt.expiration-ms}") long expirationMs){
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }
-
 
     public String generateToken(UUID tenantId, UUID userId, String username, String role){
         Date now = new Date();

@@ -3,7 +3,7 @@ package com.nectar.workflow.messaging.kafka;
 import java.time.Instant;
 import java.util.UUID;
 
-public record WorkflowEvent(
+public record DomainEvent(
         UUID id,
         String eventType,
         String aggregateType,

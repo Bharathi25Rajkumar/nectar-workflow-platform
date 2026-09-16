@@ -20,19 +20,22 @@ public class WorkflowService {
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final OutboxService outboxService;
 
     public WorkflowService(WorkflowDefinitionRepository workflowDefinitionRepository,
                            WorkflowStateRepository workflowStateRepository,
                            WorkflowTransitionRepository workflowTransitionRepository,
                            TenantRepository tenantRepository,
                            UserRepository userRepository,
-                           AuditService auditService) {
+                           AuditService auditService,
+                           OutboxService outboxService) {
         this.workflowDefinitionRepository = workflowDefinitionRepository;
         this.workflowStateRepository = workflowStateRepository;
         this.workflowTransitionRepository = workflowTransitionRepository;
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -49,6 +52,8 @@ public class WorkflowService {
                 .build();
         WorkflowDefinition saved = workflowDefinitionRepository.save(wd);
         auditService.log(tenantId, "WORKFLOW", saved.getId(), "CREATE", actor, "Created workflow " + name);
+        String wfPayload = "{\"workflowId\":\""+saved.getId()+"\",\"name\":\""+name+"\",\"tenantId\":\""+tenantId+"\"}";
+        outboxService.save(tenantId,"WORKFLOW",saved.getId(),"WorkflowActivated",wfPayload);
         return saved;
     }
 
@@ -76,7 +81,10 @@ public class WorkflowService {
                 .initial(initial)
                 .terminal(terminal)
                 .build();
-        return workflowStateRepository.save(state);
+        WorkflowState savedState = workflowStateRepository.save(state);
+        String stPayload = "{\"workflowId\":\""+workflowId+"\",\"stateId\":\""+ savedState.getId()+"\",\"name\":\""+stateName+"\"}";
+        outboxService.save(tenantId,"WORKFLOW",workflowId,"WorkflowUpdated",stPayload);
+        return savedState;
     }
 
     @Transactional
@@ -99,7 +107,10 @@ public class WorkflowService {
                 .actionType(actionType != null ? actionType : "LOG")
                 .build();
         from.addTransition(tr);
-        return workflowTransitionRepository.save(tr);
+        WorkflowTransition savedTransition = workflowTransitionRepository.save(tr);
+        String payload = "{\"workflowId\":\"" + from.getWorkflow().getId() + "\",\"fromState\":\"" + from.getName() + "\",\"toState\":\"" + to.getName() + "\",\"transition\":\"" + name + "\",\"tenantId\":\"" + tenantId + "\"}";
+        outboxService.save(tenantId, "WORKFLOW", from.getWorkflow().getId(), "WorkflowUpdated", payload);
+        return savedTransition;
     }
 
 }

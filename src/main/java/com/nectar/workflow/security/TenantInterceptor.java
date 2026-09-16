@@ -15,10 +15,6 @@ public class TenantInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
-        String path = request.getRequestURI();
-        if(path.startsWith("/api/auth")){
-            return true;
-        }
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UUID tokenTenant = null;
