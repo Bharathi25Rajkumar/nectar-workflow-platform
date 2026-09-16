@@ -36,13 +36,13 @@ src/main/java/com/nectar/workflow
   engine/        WorkflowEngine, TransitionCondition, AlwaysTrueCondition, AssigneeOnlyCondition, WorkflowAction, LogAction
   service/       AuthService, TaskService, ProjectService, WorkflowService, AuditService, OutboxService
   outbox/        OutboxPoller
-  messaging/     TaskEventConsumer (Kafka), TaskRabbitConsumer (RabbitMQ)
-  messaging/kafka WorkflowEvent (record for Kafka JsonSerializer)
+  messaging/     DomainEventConsumer (Kafka), TaskRabbitConsumer (RabbitMQ)
+  messaging/kafka DomainEvent (record for Kafka JsonSerializer)
   controller/    AuthController, TaskController, ProjectController, WorkflowController
   dtos/          *RequestDto / *ResponseDto as records
   exception/     GlobalExceptionHandler
 src/main/resources
-  application.properties        (common: jwt, flyway, nectar.kafka.topics.workflow-events, nectar.kafka.topics.audit)
+  application.properties        (common: jwt, flyway, nectar.kafka.topics.workflow-events, nectar.kafka.topics.task-events)
   application-dev.properties    (H2)
   application-prod.properties   (Postgres + kafka:9092 + rabbitmq)
   db/migration/ V1__init.sql V2__seed.sql V3__history_and_audit.sql V4__outbox.sql
@@ -80,7 +80,7 @@ curl http://localhost:8080/api/projects/<acme-id> -H "Authorization: Bearer ***"
 ```
 
 ## Kafka / RabbitMQ
-- Kafka: ProducerFactory<String, WorkflowEvent> with JsonSerializer (ADD_TYPE_INFO_HEADERS false), acks=all retries=3 enable.idempotence=true, topics nectar.workflow.events (6 partitions) and nectar.task.events as audit (3 partitions) configurable via nectar.kafka.topics.* in application.properties, key=tenantId for per-tenant ordering
+- Kafka: ProducerFactory<String, DomainEvent> with JsonSerializer (ADD_TYPE_INFO_HEADERS false), acks=all retries=3 enable.idempotence=true, topics nectar.workflow.events (3 partitions) and nectar.task.events as audit (6 partitions) configurable via nectar.kafka.topics.* in application.properties, key=tenantId for per-tenant ordering
 - RabbitMQ: DirectExchange nectar.exchange, Queue nectar.task.queue with x-dead-letter to nectar.task.dlq, 5-bean simple config
 
 ## Docs

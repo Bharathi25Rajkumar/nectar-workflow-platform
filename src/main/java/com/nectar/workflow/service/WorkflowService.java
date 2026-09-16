@@ -8,7 +8,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -21,6 +24,7 @@ public class WorkflowService {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final OutboxService outboxService;
+    private final JsonMapper jsonMapper;
 
     public WorkflowService(WorkflowDefinitionRepository workflowDefinitionRepository,
                            WorkflowStateRepository workflowStateRepository,
@@ -28,7 +32,8 @@ public class WorkflowService {
                            TenantRepository tenantRepository,
                            UserRepository userRepository,
                            AuditService auditService,
-                           OutboxService outboxService) {
+                           OutboxService outboxService,
+                           JsonMapper jsonMapper) {
         this.workflowDefinitionRepository = workflowDefinitionRepository;
         this.workflowStateRepository = workflowStateRepository;
         this.workflowTransitionRepository = workflowTransitionRepository;
@@ -36,6 +41,7 @@ public class WorkflowService {
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.outboxService = outboxService;
+        this.jsonMapper = jsonMapper;
     }
 
     @Transactional
@@ -52,7 +58,15 @@ public class WorkflowService {
                 .build();
         WorkflowDefinition saved = workflowDefinitionRepository.save(wd);
         auditService.log(tenantId, "WORKFLOW", saved.getId(), "CREATE", actor, "Created workflow " + name);
-        String wfPayload = "{\"workflowId\":\""+saved.getId()+"\",\"name\":\""+name+"\",\"tenantId\":\""+tenantId+"\"}";
+
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("workflowId", saved.getId().toString());
+        m.put("name", name);
+        m.put("tenantId", tenantId.toString());
+        String wfPayload;
+        try { wfPayload = jsonMapper.writeValueAsString(m); } catch (Exception e) { throw new IllegalStateException("Failed to serialize payload", e); }
+
+
         outboxService.save(tenantId,"WORKFLOW",saved.getId(),"WorkflowActivated",wfPayload);
         return saved;
     }
@@ -82,7 +96,15 @@ public class WorkflowService {
                 .terminal(terminal)
                 .build();
         WorkflowState savedState = workflowStateRepository.save(state);
-        String stPayload = "{\"workflowId\":\""+workflowId+"\",\"stateId\":\""+ savedState.getId()+"\",\"name\":\""+stateName+"\"}";
+
+        Map<String, String> m2 = new LinkedHashMap<>();
+        m2.put("workflowId", workflowId.toString());
+        m2.put("stateId", savedState.getId().toString());
+        m2.put("name", stateName);
+        String stPayload;
+        try { stPayload = jsonMapper.writeValueAsString(m2); } catch (Exception e) { throw new IllegalStateException("Failed to serialize payload", e); }
+
+
         outboxService.save(tenantId,"WORKFLOW",workflowId,"WorkflowUpdated",stPayload);
         return savedState;
     }
@@ -108,7 +130,17 @@ public class WorkflowService {
                 .build();
         from.addTransition(tr);
         WorkflowTransition savedTransition = workflowTransitionRepository.save(tr);
-        String payload = "{\"workflowId\":\"" + from.getWorkflow().getId() + "\",\"fromState\":\"" + from.getName() + "\",\"toState\":\"" + to.getName() + "\",\"transition\":\"" + name + "\",\"tenantId\":\"" + tenantId + "\"}";
+
+        Map<String, String> m3 = new LinkedHashMap<>();
+        m3.put("workflowId", from.getWorkflow().getId().toString());
+        m3.put("fromState", from.getName());
+        m3.put("toState", to.getName());
+        m3.put("transition", name);
+        m3.put("tenantId", tenantId.toString());
+        String payload;
+        try { payload = jsonMapper.writeValueAsString(m3); } catch (Exception e) { throw new IllegalStateException("Failed to serialize payload", e); }
+
+
         outboxService.save(tenantId, "WORKFLOW", from.getWorkflow().getId(), "WorkflowUpdated", payload);
         return savedTransition;
     }

@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public interface WorkflowTransitionRepository extends JpaRepository<WorkflowTransition, UUID> {
 
-    @Query("SELECT t FROM WorkflowTransition t WHERE t.id = :id AND t.fromState.workflow.id = :tenantId")
+    @Query("SELECT t FROM WorkflowTransition t WHERE t.id = :id AND t.fromState.workflow.tenant.id = :tenantId")
     Optional<WorkflowTransition> findByIdAndTenantId(@Param("id") UUID id, @Param("tenantId") UUID tenantId);
 
     List<WorkflowTransition> findByFromStateId(UUID fromStateId);

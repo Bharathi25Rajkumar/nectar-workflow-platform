@@ -44,7 +44,7 @@ public class WorkflowEngine {
         String condType = workflowTransition.getConditionType();
         TransitionCondition cond = conditions.get(condType);
 
-        if(cond == null) throw new IllegalStateException("Unknow Condition Type: " + condType);
+        if(cond == null) throw new IllegalStateException("Unknown Condition Type: " + condType);
 
         if(!cond.test(task, actor)){
             throw new IllegalStateException("Condition " + condType + " failed for transition " + transitionName);

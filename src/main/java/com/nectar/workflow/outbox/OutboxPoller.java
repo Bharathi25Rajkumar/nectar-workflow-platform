@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -49,7 +50,6 @@ public class OutboxPoller {
     }
 
     @Scheduled(fixedDelay = 5000)
-    @Transactional
     public void poll() {
         List<OutboxEvent> batch = outboxEventRepository
                 .findByPublishedFalseOrderByCreatedAtAsc(PageRequest.of(0, 100));
@@ -58,8 +58,9 @@ public class OutboxPoller {
         for (OutboxEvent event : batch) {
             try {
                 String key = event.getTenantId().toString();
-                if (kafkaTemplate != null) {
+                String topic = resolveTopic(event.getAggregateType());
 
+                if (kafkaTemplate != null) {
                     DomainEvent domainEvent = new DomainEvent(
                             event.getId(),
                             event.getEventType(),
@@ -69,8 +70,6 @@ public class OutboxPoller {
                             event.getPayload(),
                             event.getCreatedAt()
                     );
-
-                    String topic = resolveTopic(event.getAggregateType());
 
                     ProducerRecord<String, DomainEvent> record =
                             new ProducerRecord<>(topic, key, domainEvent);
@@ -97,11 +96,19 @@ public class OutboxPoller {
                         event.getAggregateType(), event.getAggregateId()
                 );
 
-                event.markPublished();
-                outboxEventRepository.save(event);
+                markPublished(event.getId());
             } catch (Exception e) {
                 log.error("Failed to publish outbox event {}: {}", event.getId(), e.getMessage(), e);
             }
+        }
+    }
+
+    @Transactional
+    public void markPublished(UUID eventId) {
+        OutboxEvent e = outboxEventRepository.findById(eventId).orElse(null);
+        if (e != null) {
+            e.markPublished();
+            outboxEventRepository.save(e);
         }
     }
 

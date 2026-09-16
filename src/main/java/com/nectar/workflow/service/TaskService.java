@@ -9,7 +9,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -23,6 +26,7 @@ public class TaskService {
     private final WorkflowEngine workflowEngine;
     private final AuditService auditService;
     private final OutboxService outboxService;
+    private final JsonMapper jsonMapper;
 
     public TaskService(TaskRepository taskRepository,
                        ProjectRepository projectRepository,
@@ -31,7 +35,8 @@ public class TaskService {
                        UserRepository userRepository,
                        WorkflowEngine workflowEngine,
                        AuditService auditService,
-                       OutboxService outboxService) {
+                       OutboxService outboxService,
+                       JsonMapper jsonMapper) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.workflowDefinitionRepository = workflowDefinitionRepository;
@@ -40,6 +45,7 @@ public class TaskService {
         this.workflowEngine = workflowEngine;
         this.auditService = auditService;
         this.outboxService = outboxService;
+        this.jsonMapper = jsonMapper;
     }
 
     @Transactional
@@ -70,7 +76,18 @@ public class TaskService {
 
         Task savedTask = taskRepository.save(task);
 
-        String payload = "{\"taskId\":\"" + savedTask.getId() + "\",\"projectId\":\"" + projectId + "\",\"tenantId\":\"" + tenantId + "\",\"title\":\"" + title + "\"}";
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("taskId", savedTask.getId().toString());
+        m.put("projectId", projectId.toString());
+        m.put("tenantId", tenantId.toString());
+        m.put("title", title);
+
+        String payload;
+        try {
+            payload = jsonMapper.writeValueAsString(m);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize payload", e);
+        }
         outboxService.save(tenantId, "TASK", savedTask.getId(), "TaskCreated", payload);
         auditService.log(tenantId, "TASK", savedTask.getId(), "CREATE", actor, "Created task: " + title);
         return savedTask;
@@ -108,7 +125,14 @@ public class TaskService {
         workflowEngine.advance(task, actor, transitionName);
         Task savedTask = taskRepository.save(task);
 
-        String payload = "{\"taskId\":\"" + savedTask.getId() + "\",\"fromState\":\"" + from + "\",\"toState\":\"" + savedTask.getCurrentState().getName() + "\",\"transition\":\"" + transitionName + "\",\"tenantId\":\"" + tenantId + "\"}";
+        Map<String, String> m2 = new LinkedHashMap<>();
+        m2.put("taskId", savedTask.getId().toString());
+        m2.put("fromState", from);
+        m2.put("toState", savedTask.getCurrentState().getName());
+        m2.put("transition", transitionName);
+        m2.put("tenantId", tenantId.toString());
+        String payload;
+        try { payload = jsonMapper.writeValueAsString(m2); } catch (Exception e) { throw new IllegalStateException("Failed to serialize payload", e); }
 
         outboxService.save(tenantId, "TASK", savedTask.getId(), "TaskTransitioned", payload);
 

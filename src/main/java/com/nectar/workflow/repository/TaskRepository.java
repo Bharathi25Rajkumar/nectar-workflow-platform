@@ -11,13 +11,13 @@ import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
 
-    @EntityGraph(attributePaths = {"currentState", "project", "assignee"})
+    @EntityGraph(attributePaths = {"currentState", "project", "assignee", "tenant"})
     Optional<Task> findByIdAndTenantId(UUID id, UUID tenantId);
 
-    @EntityGraph(attributePaths = {"currentState", "project"})
+    @EntityGraph(attributePaths = {"currentState", "project", "tenant"})
     Page<Task> findByTenantId(UUID tenantId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"currentState"})
+    @EntityGraph(attributePaths = {"currentState", "project", "tenant"})
     Page<Task> findByProjectIdAndTenantId(UUID projectId, UUID tenantId, Pageable pageable);
 
     Page<Task> findByCurrentStateId(UUID stateId, Pageable pageable);

@@ -77,4 +77,4 @@ CREATE TABLE tasks (
     updated_at TIMESTAMP NOT NULL
 );
 CREATE INDEX idx_tasks_tenant_project ON tasks(tenant_id, project_id);
-CREATE INDEX idx_tasks_state ON tasks(current_state_id);
+CREATE INDEX idx_tasks_current_state ON tasks(current_state_id);
