@@ -21,7 +21,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/workflows")
-@PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+@PreAuthorize("hasRole('ADMIN')")
 public class WorkflowController {
 
     private final WorkflowService workflowService;

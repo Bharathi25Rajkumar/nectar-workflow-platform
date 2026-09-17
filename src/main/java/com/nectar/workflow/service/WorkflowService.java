@@ -86,6 +86,7 @@ public class WorkflowService {
 
     @Transactional
     public WorkflowState addState(UUID workflowId, String stateName, boolean initial, boolean terminal) {
+
         UUID tenantId = TenantContext.get();
         WorkflowDefinition wd = workflowDefinitionRepository.findByIdAndTenantId(workflowId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Workflow not found"));
@@ -102,7 +103,12 @@ public class WorkflowService {
         m2.put("stateId", savedState.getId().toString());
         m2.put("name", stateName);
         String stPayload;
-        try { stPayload = jsonMapper.writeValueAsString(m2); } catch (Exception e) { throw new IllegalStateException("Failed to serialize payload", e); }
+
+        try {
+            stPayload = jsonMapper.writeValueAsString(m2);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize payload", e);
+        }
 
 
         outboxService.save(tenantId,"WORKFLOW",workflowId,"WorkflowUpdated",stPayload);
@@ -111,15 +117,18 @@ public class WorkflowService {
 
     @Transactional
     public WorkflowTransition addTransition(UUID fromStateId, UUID toStateId, String name, Role requiredRole, String conditionType, String actionType) {
+
         WorkflowState from = workflowStateRepository.findById(fromStateId)
                 .orElseThrow(() -> new ResourceNotFoundException("From state not found"));
         WorkflowState to = workflowStateRepository.findById(toStateId)
                 .orElseThrow(() -> new ResourceNotFoundException("To state not found"));
+
         // tenant check via fromState.workflow.tenant ensures same tenant
         UUID tenantId = TenantContext.get();
         if (!from.getWorkflow().getTenant().getId().equals(tenantId)) {
             throw new ResourceNotFoundException("State not found");
         }
+
         WorkflowTransition tr = WorkflowTransition.builder()
                 .fromState(from)
                 .toState(to)
@@ -128,7 +137,9 @@ public class WorkflowService {
                 .conditionType(conditionType != null ? conditionType : "ALWAYS_TRUE")
                 .actionType(actionType != null ? actionType : "LOG")
                 .build();
+
         from.addTransition(tr);
+
         WorkflowTransition savedTransition = workflowTransitionRepository.save(tr);
 
         Map<String, String> m3 = new LinkedHashMap<>();
@@ -138,8 +149,12 @@ public class WorkflowService {
         m3.put("transition", name);
         m3.put("tenantId", tenantId.toString());
         String payload;
-        try { payload = jsonMapper.writeValueAsString(m3); } catch (Exception e) { throw new IllegalStateException("Failed to serialize payload", e); }
 
+        try {
+            payload = jsonMapper.writeValueAsString(m3);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize payload", e);
+        }
 
         outboxService.save(tenantId, "WORKFLOW", from.getWorkflow().getId(), "WorkflowUpdated", payload);
         return savedTransition;
