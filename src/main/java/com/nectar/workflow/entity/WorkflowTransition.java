@@ -3,6 +3,8 @@ package com.nectar.workflow.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -34,13 +36,17 @@ public class WorkflowTransition {
     @Column(length = 20)
     private Role requiredRole;
 
-    @Column(nullable = false, length = 30)
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "workflow_transition_conditions", joinColumns = @JoinColumn(name = "transition_id"))
+    @Column(name = "condition_type")
     @Builder.Default
-    private String conditionType = "ALWAYS_TRUE";
+    private List<String> conditionTypes = new ArrayList<>(List.of("ALWAYS_TRUE"));
 
-    @Column(nullable = false, length = 30)
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "workflow_transition_actions", joinColumns = @JoinColumn(name = "transition_id"))
+    @Column(name = "action_type")
     @Builder.Default
-    private String actionType = "LOG";
+    private List<String> actionTypes = new ArrayList<>(List.of("LOG"));
 
 
 }

@@ -116,7 +116,7 @@ public class WorkflowService {
     }
 
     @Transactional
-    public WorkflowTransition addTransition(UUID fromStateId, UUID toStateId, String name, Role requiredRole, String conditionType, String actionType) {
+    public WorkflowTransition addTransition(UUID fromStateId, UUID toStateId, String name, Role requiredRole, List<String> conditionTypes, List<String> actionTypes) {
 
         WorkflowState from = workflowStateRepository.findById(fromStateId)
                 .orElseThrow(() -> new ResourceNotFoundException("From state not found"));
@@ -134,8 +134,8 @@ public class WorkflowService {
                 .toState(to)
                 .name(name)
                 .requiredRole(requiredRole)
-                .conditionType(conditionType != null ? conditionType : "ALWAYS_TRUE")
-                .actionType(actionType != null ? actionType : "LOG")
+                .conditionTypes(conditionTypes != null ? conditionTypes : List.of("ALWAYS_TRUE"))
+                .actionTypes(actionTypes != null ? actionTypes : List.of("LOG"))
                 .build();
 
         from.addTransition(tr);

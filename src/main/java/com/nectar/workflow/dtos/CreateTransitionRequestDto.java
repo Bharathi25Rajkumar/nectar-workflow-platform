@@ -3,10 +3,12 @@ package com.nectar.workflow.dtos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 public record CreateTransitionRequestDto(
         @NotBlank String toStateId,
-        @NotBlank @Size(max = 100) String name,
+        @NotBlank String name,
         String requiredRole,
-        String conditionType,
-        String actionType
+        List<String> conditionTypes,
+        List<String> actionTypes
 ) {}

@@ -59,9 +59,9 @@ public class WorkflowController {
                                                                @Valid @RequestBody CreateTransitionRequestDto requestDto) {
         Role role = requestDto.requiredRole() != null ? Role.valueOf(requestDto.requiredRole()) : null;
         WorkflowTransition tr = workflowService.addTransition(fromStateId, UUID.fromString(requestDto.toStateId()), requestDto.name(),
-                role, requestDto.conditionType(), requestDto.actionType());
+                role, requestDto.conditionTypes(), requestDto.actionTypes());
         return ResponseEntity.status(HttpStatus.CREATED).body(new TransitionResponseDto(tr.getId(), tr.getFromState().getId(),
-                tr.getToState().getId(), tr.getName(), tr.getRequiredRole() != null ? tr.getRequiredRole().name() : null, tr.getConditionType(), tr.getActionType()));
+                tr.getToState().getId(), tr.getName(), tr.getRequiredRole() != null ? tr.getRequiredRole().name() : null, tr.getConditionTypes(), tr.getActionTypes()));
     }
 
     private WorkflowResponseDto toResponseDto(WorkflowDefinition wd) {

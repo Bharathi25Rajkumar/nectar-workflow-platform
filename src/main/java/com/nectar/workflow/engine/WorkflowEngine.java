@@ -41,23 +41,21 @@ public class WorkflowEngine {
             }
         }
 
-        String condType = workflowTransition.getConditionType();
-        TransitionCondition cond = conditions.get(condType);
-
-        if(cond == null) throw new IllegalStateException("Unknown Condition Type: " + condType);
-
-        if(!cond.test(task, actor)){
-            throw new IllegalStateException("Condition " + condType + " failed for transition " + transitionName);
+        for (String condType : workflowTransition.getConditionTypes()) {
+            TransitionCondition cond = conditions.get(condType);
+            if(cond == null) throw new IllegalStateException("Unknown Condition Type: " + condType);
+            if(!cond.test(task, actor)){
+                throw new IllegalStateException("Condition " + condType + " failed for transition " + transitionName);
+            }
         }
 
         task.moveTo(workflowTransition.getToState());
 
-        String actionType = workflowTransition.getActionType();
-
-        WorkflowAction action = actions.get(actionType);
-
-        if(action != null){
-            action.execute(task, actor, workflowTransition);
+        for (String actionType : workflowTransition.getActionTypes()) {
+            WorkflowAction action = actions.get(actionType);
+            if(action != null){
+                action.execute(task, actor, workflowTransition);
+            }
         }
 
         return task;
